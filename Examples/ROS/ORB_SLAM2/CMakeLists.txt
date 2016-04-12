@@ -53,6 +53,9 @@ ${PROJECT_SOURCE_DIR}/../../../lib/libORB_SLAM2.so
 # Node for monocular camera
 rosbuild_add_executable(Mono
 src/ros_mono.cc
+#src/FramePublisher.cpp
+#src/MapPublisher.cpp
+src/ros_viewer.cpp
 )
 
 target_link_libraries(Mono
@@ -62,6 +65,7 @@ ${LIBS}
 # Node for RGB-D camera
 rosbuild_add_executable(RGBD
 src/ros_rgbd.cc
+src/MapPublisher.cpp
 )
 
 target_link_libraries(RGBD
