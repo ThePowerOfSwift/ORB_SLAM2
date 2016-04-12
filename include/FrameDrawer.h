@@ -40,10 +40,11 @@ class Viewer;
 class FrameDrawer
 {
 public:
-    FrameDrawer(Map* pMap);
+    FrameDrawer();
 
     // Update info from the last processed frame.
     void Update(Tracking *pTracker);
+	void Register(Map* pMap);
 
     // Draw last processed frame.
     cv::Mat DrawFrame();

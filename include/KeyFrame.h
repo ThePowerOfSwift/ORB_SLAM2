@@ -63,7 +63,7 @@ public:
     void UpdateConnections();
     void UpdateBestCovisibles();
     std::set<KeyFrame *> GetConnectedKeyFrames();
-    std::vector<KeyFrame* > GetVectorCovisibleKeyFrames();
+    std::vector<KeyFrame*> GetVectorCovisibleKeyFrames();
     std::vector<KeyFrame*> GetBestCovisibilityKeyFrames(const int &N);
     std::vector<KeyFrame*> GetCovisiblesByWeight(const int &w);
     int GetWeight(KeyFrame* pKF);
@@ -154,7 +154,8 @@ public:
     long unsigned int mnBAGlobalForKF;
 
     // Calibration parameters
-    const float fx, fy, cx, cy, invfx, invfy, mbf, mb, mThDepth;
+    //const float fx, fy, cx, cy, invfx, invfy, mbf, mb;
+	const float mThDepth;
 
     // Number of KeyPoints
     const int N;
@@ -186,7 +187,7 @@ public:
     const int mnMinY;
     const int mnMaxX;
     const int mnMaxY;
-    const cv::Mat mK;
+    //const cv::Mat mK;
 
 
     // The following variables need to be accessed trough a mutex to be thread safe.

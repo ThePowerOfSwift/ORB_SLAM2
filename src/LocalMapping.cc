@@ -19,6 +19,7 @@
 */
 
 #include "LocalMapping.h"
+#include "Camera.h"
 #include "LoopClosing.h"
 #include "ORBmatcher.h"
 #include "Optimizer.h"
@@ -222,12 +223,12 @@ void LocalMapping::CreateNewMapPoints()
     tcw1.copyTo(Tcw1.col(3));
     cv::Mat Ow1 = mpCurrentKeyFrame->GetCameraCenter();
 
-    const float &fx1 = mpCurrentKeyFrame->fx;
-    const float &fy1 = mpCurrentKeyFrame->fy;
-    const float &cx1 = mpCurrentKeyFrame->cx;
-    const float &cy1 = mpCurrentKeyFrame->cy;
-    const float &invfx1 = mpCurrentKeyFrame->invfx;
-    const float &invfy1 = mpCurrentKeyFrame->invfy;
+    const float &fx1 = Camera::fx;//mpCurrentKeyFrame->fx;
+    const float &fy1 = Camera::fy;//mpCurrentKeyFrame->fy;
+    const float &cx1 = Camera::cx;//mpCurrentKeyFrame->cx;
+    const float &cy1 = Camera::cy;//mpCurrentKeyFrame->cy;
+    const float &invfx1 = Camera::invfx;//mpCurrentKeyFrame->invfx;
+    const float &invfy1 = Camera::invfy;//mpCurrentKeyFrame->invfy;
 
     const float ratioFactor = 1.5f*mpCurrentKeyFrame->mfScaleFactor;
 
@@ -248,7 +249,7 @@ void LocalMapping::CreateNewMapPoints()
 
         if(!mbMonocular)
         {
-            if(baseline<pKF2->mb)
+		    if(baseline<Camera::b)
             continue;
         }
         else
@@ -274,12 +275,12 @@ void LocalMapping::CreateNewMapPoints()
         Rcw2.copyTo(Tcw2.colRange(0,3));
         tcw2.copyTo(Tcw2.col(3));
 
-        const float &fx2 = pKF2->fx;
-        const float &fy2 = pKF2->fy;
-        const float &cx2 = pKF2->cx;
-        const float &cy2 = pKF2->cy;
-        const float &invfx2 = pKF2->invfx;
-        const float &invfy2 = pKF2->invfy;
+        const float &fx2 = Camera::fx;
+        const float &fy2 = Camera::fy;
+        const float &cx2 = Camera::cx;
+        const float &cy2 = Camera::cy;
+        const float &invfx2 = Camera::invfx;
+        const float &invfy2 = Camera::invfy;
 
         // Triangulate each match
         const int nmatches = vMatchedIndices.size();
@@ -309,9 +310,9 @@ void LocalMapping::CreateNewMapPoints()
             float cosParallaxStereo2 = cosParallaxStereo;
 
             if(bStereo1)
-                cosParallaxStereo1 = cos(2*atan2(mpCurrentKeyFrame->mb/2,mpCurrentKeyFrame->mvDepth[idx1]));
+			  cosParallaxStereo1 = cos(2*atan2(Camera::b/2,mpCurrentKeyFrame->mvDepth[idx1]));
             else if(bStereo2)
-                cosParallaxStereo2 = cos(2*atan2(pKF2->mb/2,pKF2->mvDepth[idx2]));
+			  cosParallaxStereo2 = cos(2*atan2(Camera::b/2,pKF2->mvDepth[idx2]));
 
             cosParallaxStereo = min(cosParallaxStereo1,cosParallaxStereo2);
 
@@ -377,7 +378,7 @@ void LocalMapping::CreateNewMapPoints()
             else
             {
                 float u1 = fx1*x1*invz1+cx1;
-                float u1_r = u1 - mpCurrentKeyFrame->mbf*invz1;
+                float u1_r = u1 - Camera::bf*invz1;
                 float v1 = fy1*y1*invz1+cy1;
                 float errX1 = u1 - kp1.pt.x;
                 float errY1 = v1 - kp1.pt.y;
@@ -403,7 +404,7 @@ void LocalMapping::CreateNewMapPoints()
             else
             {
                 float u2 = fx2*x2*invz2+cx2;
-                float u2_r = u2 - mpCurrentKeyFrame->mbf*invz2;
+                float u2_r = u2 - Camera::bf*invz2;
                 float v2 = fy2*y2*invz2+cy2;
                 float errX2 = u2 - kp2.pt.x;
                 float errY2 = v2 - kp2.pt.y;
@@ -545,8 +546,8 @@ cv::Mat LocalMapping::ComputeF12(KeyFrame *&pKF1, KeyFrame *&pKF2)
 
     cv::Mat t12x = SkewSymmetricMatrix(t12);
 
-    const cv::Mat &K1 = pKF1->mK;
-    const cv::Mat &K2 = pKF2->mK;
+    const cv::Mat &K1 = Camera::K;
+    const cv::Mat &K2 = Camera::K;
 
 
     return K1.t().inv()*t12x*R12*K2.inv();

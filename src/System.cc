@@ -22,31 +22,34 @@
 
 #include "System.h"
 #include "Converter.h"
+#include "Camera.h"
+
 #include <thread>
 #include <pangolin/pangolin.h>
+#include <time.h>
+
+bool has_suffix(const std::string &str, const std::string &suffix) {
+  std::size_t index = str.find(suffix, str.size() - suffix.size());
+  return (index != std::string::npos);
+}
 
 namespace ORB_SLAM2
 {
 
 System::System(const string &strVocFile, const string &strSettingsFile, const eSensor sensor,
-               const bool bUseViewer):mSensor(sensor),mbReset(false),mbActivateLocalizationMode(false),
-        mbDeactivateLocalizationMode(false)
+               Viewer* pViewer, Map* map, ORBVocabulary* voc):mSensor(sensor),mbReset(false),mbActivateLocalizationMode(false),
+			   mbDeactivateLocalizationMode(false)
 {
-    // Output welcome message
+    clock_t tStart = clock();
+	// Output welcome message
     cout << endl <<
     "ORB-SLAM2 Copyright (C) 2014-2016 Raul Mur-Artal, University of Zaragoza." << endl <<
     "This program comes with ABSOLUTELY NO WARRANTY;" << endl  <<
     "This is free software, and you are welcome to redistribute it" << endl <<
     "under certain conditions. See LICENSE.txt." << endl << endl;
 
-    cout << "Input sensor was set to: ";
-
-    if(mSensor==MONOCULAR)
-        cout << "Monocular" << endl;
-    else if(mSensor==STEREO)
-        cout << "Stereo" << endl;
-    else if(mSensor==RGBD)
-        cout << "RGB-D" << endl;
+	string str_sensor[] = {"Monocular", "Stereo", "RGB-D"};
+    cout << "Input sensor was set to: " << str_sensor[mSensor] << endl;
 
     //Check settings file
     cv::FileStorage fsSettings(strSettingsFile.c_str(), cv::FileStorage::READ);
@@ -56,34 +59,44 @@ System::System(const string &strVocFile, const string &strSettingsFile, const eS
        exit(-1);
     }
 
+    if (voc == NULL) {
+	  //Load ORB Vocabulary
+	  cout << endl << "Loading ORB Vocabulary. This could take a while..." << endl;
 
-    //Load ORB Vocabulary
-    cout << endl << "Loading ORB Vocabulary. This could take a while..." << endl;
-
-    mpVocabulary = new ORBVocabulary();
-    bool bVocLoad = mpVocabulary->loadFromTextFile(strVocFile);
-    if(!bVocLoad)
-    {
+	  mpVocabulary = new ORBVocabulary();
+	  bool bVocLoad = false; // chose loading method based on file extension
+	  if (has_suffix(strVocFile, ".txt"))
+		bVocLoad = mpVocabulary->loadFromTextFile(strVocFile);
+	  else
+		bVocLoad = mpVocabulary->loadFromBinaryFile(strVocFile);
+	  if(!bVocLoad)
+	  {
         cerr << "Wrong path to vocabulary. " << endl;
-        cerr << "Falied to open at: " << strVocFile << endl;
+        cerr << "Failed to open at: " << strVocFile << endl;
         exit(-1);
-    }
-    cout << "Vocabulary loaded!" << endl << endl;
+	  }
+	  printf("loading duration: %.2fs\n", (double)(clock() - tStart)/CLOCKS_PER_SEC);
+	  cout << "Vocabulary loaded!" << endl << endl;
+	}
+	else
+	  mpVocabulary = voc;
+
+	if (!Camera::initialized) Camera::Load(fsSettings);
 
     //Create KeyFrame Database
     mpKeyFrameDatabase = new KeyFrameDatabase(*mpVocabulary);
 
     //Create the Map
-    mpMap = new Map();
-
-    //Create Drawers. These are used by the Viewer
-    mpFrameDrawer = new FrameDrawer(mpMap);
-    mpMapDrawer = new MapDrawer(mpMap, strSettingsFile);
+    if (map==NULL) mpMap = new Map();
+	else {
+	  mpMap = map;
+	  for(auto kf: map->GetAllKeyFrames())
+		mpKeyFrameDatabase->add(kf);
+	}
 
     //Initialize the Tracking thread
     //(it will live in the main thread of execution, the one that called this constructor)
-    mpTracker = new Tracking(this, mpVocabulary, mpFrameDrawer, mpMapDrawer,
-                             mpMap, mpKeyFrameDatabase, strSettingsFile, mSensor);
+    mpTracker = new Tracking(this, mpVocabulary, mpMap, mpKeyFrameDatabase, strSettingsFile, mSensor);
 
     //Initialize the Local Mapping thread and launch
     mpLocalMapper = new LocalMapping(mpMap, mSensor==MONOCULAR);
@@ -94,11 +107,12 @@ System::System(const string &strVocFile, const string &strSettingsFile, const eS
     mptLoopClosing = new thread(&ORB_SLAM2::LoopClosing::Run, mpLoopCloser);
 
     //Initialize the Viewer thread and launch
-    mpViewer = new Viewer(this, mpFrameDrawer,mpMapDrawer,mpTracker,strSettingsFile);
-    if(bUseViewer)
-        mptViewer = new thread(&Viewer::Run, mpViewer);
-
-    mpTracker->SetViewer(mpViewer);
+    mpViewer = pViewer;//new Viewer(strSettingsFile);
+	if (mpViewer != NULL) {
+	  mpViewer->Register(this);
+	  mptViewer = new thread(&Viewer::Run, mpViewer);
+	  mpTracker->SetViewer(mpViewer);
+	}
 
     //Set pointers between threads
     mpTracker->SetLocalMapper(mpLocalMapper);
@@ -268,16 +282,35 @@ void System::Shutdown()
 {
     mpLocalMapper->RequestFinish();
     mpLoopCloser->RequestFinish();
-    mpViewer->RequestFinish();
+    if (mpViewer != NULL)
+	  mpViewer->RequestFinish();
 
     // Wait until all thread have effectively stopped
     while(!mpLocalMapper->isFinished() || !mpLoopCloser->isFinished()  ||
-          !mpViewer->isFinished()      || mpLoopCloser->isRunningGBA())
+          mpLoopCloser->isRunningGBA())
     {
         usleep(5000);
     }
+	if (mpViewer != NULL) {
+	  while(!mpViewer->isFinished())
+		usleep(5000);
+	  mpViewer->Finalize();
+	}
+}
 
-    pangolin::BindToContext("ORB-SLAM2: Map Viewer");
+Map* System::GetMap() {return this->mpMap;}
+
+bool System::SaveMap(const string &filename) {
+  cerr << "System Saving to " << filename << endl;
+  return mpMap->Save(filename);
+}
+
+int System::GetStatus() {
+  return mpTracker->mState;
+}
+
+void System::SetStatus(int status) {
+  mpTracker->mState = (enum Tracking::eTrackingState)status;
 }
 
 void System::SaveTrajectoryTUM(const string &filename)
@@ -422,4 +455,4 @@ void System::SaveTrajectoryKITTI(const string &filename)
     cout << endl << "trajectory saved!" << endl;
 }
 
-} //namespace ORB_SLAM
+} //namespace ORB_SLAM2

@@ -51,6 +51,7 @@
 #include <iostream>
 
 #include "PnPsolver.h"
+#include "Camera.h"
 
 #include <vector>
 #include <cmath>
@@ -101,10 +102,10 @@ PnPsolver::PnPsolver(const Frame &F, const vector<MapPoint*> &vpMapPointMatches)
     }
 
     // Set camera calibration parameters
-    fu = F.fx;
-    fv = F.fy;
-    uc = F.cx;
-    vc = F.cy;
+    fu = Camera::fx;
+    fv = Camera::fy;
+    uc = Camera::cx;
+    vc = Camera::cy;
 
     SetRansacParameters();
 }

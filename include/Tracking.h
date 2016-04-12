@@ -26,7 +26,6 @@
 #include<opencv2/features2d/features2d.hpp>
 
 #include"Viewer.h"
-#include"FrameDrawer.h"
 #include"Map.h"
 #include"LocalMapping.h"
 #include"LoopClosing.h"
@@ -35,7 +34,6 @@
 #include"KeyFrameDatabase.h"
 #include"ORBextractor.h"
 #include "Initializer.h"
-#include "MapDrawer.h"
 #include "System.h"
 
 #include <mutex>
@@ -44,7 +42,6 @@ namespace ORB_SLAM2
 {
 
 class Viewer;
-class FrameDrawer;
 class Map;
 class LocalMapping;
 class LoopClosing;
@@ -54,7 +51,7 @@ class Tracking
 {  
 
 public:
-    Tracking(System* pSys, ORBVocabulary* pVoc, FrameDrawer* pFrameDrawer, MapDrawer* pMapDrawer, Map* pMap,
+    Tracking(System* pSys, ORBVocabulary* pVoc, Map* pMap,
              KeyFrameDatabase* pKFDB, const string &strSettingPath, const int sensor);
 
     // Preprocess the input and call Track(). Extract features and performs stereo matching.
@@ -175,16 +172,14 @@ protected:
     
     //Drawers
     Viewer* mpViewer;
-    FrameDrawer* mpFrameDrawer;
-    MapDrawer* mpMapDrawer;
 
     //Map
     Map* mpMap;
 
     //Calibration matrix
-    cv::Mat mK;
-    cv::Mat mDistCoef;
-    float mbf;
+    //cv::Mat mK;
+    //cv::Mat mDistCoef;
+    //float mbf;
 
     //New KeyFrame rules (according to fps)
     int mMinFrames;
@@ -214,6 +209,11 @@ protected:
     bool mbRGB;
 
     list<MapPoint*> mlpTemporalPoints;
+ private:
+    //bool ReadCameraCalibration(cv::FileStorage fSettings);
+	bool _Track_full();
+	bool _Track_loc_only();
+
 };
 
 } //namespace ORB_SLAM

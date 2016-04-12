@@ -29,7 +29,7 @@
 namespace ORB_SLAM2
 {
 
-FrameDrawer::FrameDrawer(Map* pMap):mpMap(pMap)
+FrameDrawer::FrameDrawer()
 {
     mState=Tracking::SYSTEM_NOT_READY;
     mIm = cv::Mat(480,640,CV_8UC3, cv::Scalar(0,0,0));
@@ -197,6 +197,10 @@ void FrameDrawer::Update(Tracking *pTracker)
         }
     }
     mState=static_cast<int>(pTracker->mLastProcessedState);
+}
+
+void FrameDrawer::Register(Map* pMap) {
+  mpMap = pMap;
 }
 
 } //namespace ORB_SLAM

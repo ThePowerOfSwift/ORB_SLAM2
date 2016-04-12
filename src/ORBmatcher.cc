@@ -19,6 +19,7 @@
 */
 
 #include "ORBmatcher.h"
+#include "Camera.h"
 
 #include<limits.h>
 
@@ -232,10 +233,11 @@ int ORBmatcher::SearchByBoW(KeyFrame* pKF,Frame &F, vector<MapPoint*> &vpMapPoin
                         vpMapPointMatches[bestIdxF]=pMP;
 
                         const cv::KeyPoint &kp = pKF->mvKeysUn[realIdxKF];
+						//const cv::KeyPoint &kp = pKF->mvKeys[realIdxKF]; // FIXME
 
                         if(mbCheckOrientation)
                         {
-                            float rot = kp.angle-F.mvKeys[bestIdxF].angle;
+						  float rot = kp.angle-F.mvKeys[bestIdxF].angle;  //FIXME: why compare Un and not Un?
                             if(rot<0.0)
                                 rot+=360.0f;
                             int bin = round(rot*factor);
@@ -290,10 +292,10 @@ int ORBmatcher::SearchByBoW(KeyFrame* pKF,Frame &F, vector<MapPoint*> &vpMapPoin
 int ORBmatcher::SearchByProjection(KeyFrame* pKF, cv::Mat Scw, const vector<MapPoint*> &vpPoints, vector<MapPoint*> &vpMatched, int th)
 {
     // Get Calibration Parameters for later projection
-    const float &fx = pKF->fx;
-    const float &fy = pKF->fy;
-    const float &cx = pKF->cx;
-    const float &cy = pKF->cy;
+    const float &fx = Camera::fx;
+    const float &fy = Camera::fy;
+    const float &cx = Camera::cx;
+    const float &cy = Camera::cy;
 
     // Decompose Scw
     cv::Mat sRcw = Scw.rowRange(0,3).colRange(0,3);
@@ -666,8 +668,8 @@ int ORBmatcher::SearchForTriangulation(KeyFrame *pKF1, KeyFrame *pKF2, cv::Mat F
     cv::Mat t2w = pKF2->GetTranslation();
     cv::Mat C2 = R2w*Cw+t2w;
     const float invz = 1.0f/C2.at<float>(2);
-    const float ex =pKF2->fx*C2.at<float>(0)*invz+pKF2->cx;
-    const float ey =pKF2->fy*C2.at<float>(1)*invz+pKF2->cy;
+    const float ex =Camera::fx*C2.at<float>(0)*invz+Camera::cx;
+    const float ey =Camera::fy*C2.at<float>(1)*invz+Camera::cy;
 
     // Find matches between not tracked keypoints
     // Matching speed-up by ORB Vocabulary
@@ -827,11 +829,11 @@ int ORBmatcher::Fuse(KeyFrame *pKF, const vector<MapPoint *> &vpMapPoints, const
     cv::Mat Rcw = pKF->GetRotation();
     cv::Mat tcw = pKF->GetTranslation();
 
-    const float &fx = pKF->fx;
-    const float &fy = pKF->fy;
-    const float &cx = pKF->cx;
-    const float &cy = pKF->cy;
-    const float &bf = pKF->mbf;
+    const float &fx = Camera::fx;
+    const float &fy = Camera::fy;
+    const float &cx = Camera::cx;
+    const float &cy = Camera::cy;
+    const float &bf = Camera::bf;
 
     cv::Mat Ow = pKF->GetCameraCenter();
 
@@ -977,10 +979,10 @@ int ORBmatcher::Fuse(KeyFrame *pKF, const vector<MapPoint *> &vpMapPoints, const
 int ORBmatcher::Fuse(KeyFrame *pKF, cv::Mat Scw, const vector<MapPoint *> &vpPoints, float th, vector<MapPoint *> &vpReplacePoint)
 {
     // Get Calibration Parameters for later projection
-    const float &fx = pKF->fx;
-    const float &fy = pKF->fy;
-    const float &cx = pKF->cx;
-    const float &cy = pKF->cy;
+    const float &fx = Camera::fx;
+    const float &fy = Camera::fy;
+    const float &cx = Camera::cx;
+    const float &cy = Camera::cy;
 
     // Decompose Scw
     cv::Mat sRcw = Scw.rowRange(0,3).colRange(0,3);
@@ -1102,10 +1104,10 @@ int ORBmatcher::Fuse(KeyFrame *pKF, cv::Mat Scw, const vector<MapPoint *> &vpPoi
 int ORBmatcher::SearchBySim3(KeyFrame *pKF1, KeyFrame *pKF2, vector<MapPoint*> &vpMatches12,
                              const float &s12, const cv::Mat &R12, const cv::Mat &t12, const float th)
 {
-    const float &fx = pKF1->fx;
-    const float &fy = pKF1->fy;
-    const float &cx = pKF1->cx;
-    const float &cy = pKF1->cy;
+    const float &fx = Camera::fx;
+    const float &fy = Camera::fy;
+    const float &cx = Camera::cx;
+    const float &cy = Camera::cy;
 
     // Camera 1 from world
     cv::Mat R1w = pKF1->GetRotation();
@@ -1345,8 +1347,8 @@ int ORBmatcher::SearchByProjection(Frame &CurrentFrame, const Frame &LastFrame, 
 
     const cv::Mat tlc = Rlw*twc+tlw;
 
-    const bool bForward = tlc.at<float>(2)>CurrentFrame.mb && !bMono;
-    const bool bBackward = -tlc.at<float>(2)>CurrentFrame.mb && !bMono;
+    const bool bForward = tlc.at<float>(2)>Camera::b && !bMono;
+    const bool bBackward = -tlc.at<float>(2)>Camera::b && !bMono;
 
     for(int i=0; i<LastFrame.N; i++)
     {
@@ -1367,8 +1369,8 @@ int ORBmatcher::SearchByProjection(Frame &CurrentFrame, const Frame &LastFrame, 
                 if(invzc<0)
                     continue;
 
-                float u = CurrentFrame.fx*xc*invzc+CurrentFrame.cx;
-                float v = CurrentFrame.fy*yc*invzc+CurrentFrame.cy;
+                float u = Camera::fx*xc*invzc+Camera::cx;
+                float v = Camera::fy*yc*invzc+Camera::cy;
 
                 if(u<CurrentFrame.mnMinX || u>CurrentFrame.mnMaxX)
                     continue;
@@ -1406,8 +1408,8 @@ int ORBmatcher::SearchByProjection(Frame &CurrentFrame, const Frame &LastFrame, 
 
                     if(CurrentFrame.mvuRight[i2]>0)
                     {
-                        const float ur = u - CurrentFrame.mbf*invzc;
-                        const float er = fabs(ur - CurrentFrame.mvuRight[i2]);
+					    const float ur = u - Camera::bf*invzc;
+					    const float er = fabs(ur - CurrentFrame.mvuRight[i2]);
                         if(er>radius)
                             continue;
                     }
@@ -1501,8 +1503,8 @@ int ORBmatcher::SearchByProjection(Frame &CurrentFrame, KeyFrame *pKF, const set
                 const float yc = x3Dc.at<float>(1);
                 const float invzc = 1.0/x3Dc.at<float>(2);
 
-                const float u = CurrentFrame.fx*xc*invzc+CurrentFrame.cx;
-                const float v = CurrentFrame.fy*yc*invzc+CurrentFrame.cy;
+                const float u = Camera::fx*xc*invzc+Camera::cx;
+                const float v = Camera::fy*yc*invzc+Camera::cy;
 
                 if(u<CurrentFrame.mnMinX || u>CurrentFrame.mnMaxX)
                     continue;

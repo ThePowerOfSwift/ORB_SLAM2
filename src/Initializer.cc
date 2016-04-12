@@ -24,6 +24,7 @@
 
 #include "Optimizer.h"
 #include "ORBmatcher.h"
+#include "Camera.h"
 
 #include<thread>
 
@@ -32,7 +33,6 @@ namespace ORB_SLAM2
 
 Initializer::Initializer(const Frame &ReferenceFrame, float sigma, int iterations)
 {
-    mK = ReferenceFrame.mK.clone();
 
     mvKeys1 = ReferenceFrame.mvKeysUn;
 
@@ -113,9 +113,9 @@ bool Initializer::Initialize(const Frame &CurrentFrame, const vector<int> &vMatc
 
     // Try to reconstruct from homography or fundamental depending on the ratio (0.40-0.45)
     if(RH>0.40)
-        return ReconstructH(vbMatchesInliersH,H,mK,R21,t21,vP3D,vbTriangulated,1.0,50);
+	  return ReconstructH(vbMatchesInliersH,H,Camera::K,R21,t21,vP3D,vbTriangulated,1.0,50);
     else //if(pF_HF>0.6)
-        return ReconstructF(vbMatchesInliersF,F,mK,R21,t21,vP3D,vbTriangulated,1.0,50);
+	  return ReconstructF(vbMatchesInliersF,F,Camera::K,R21,t21,vP3D,vbTriangulated,1.0,50);
 
     return false;
 }
